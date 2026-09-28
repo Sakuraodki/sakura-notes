@@ -105,7 +105,7 @@ export function markdown(src, resolve) {
       const items = [];
       while (i < lines.length && re.test(lines[i])) items.push(lines[i++].replace(re, ''));
       const tag = ordered ? 'ol' : 'ul';
-      out.push(`<${tag}>${items.map((t) => `<li>${inline(t, resolve)}</li>`).join('')}</${tag}>`);
+      out.push(`<${tag}>${items.map((t) => `<li><span>${inline(t, resolve)}</span></li>`).join('')}</${tag}>`);
       continue;
     }
 
