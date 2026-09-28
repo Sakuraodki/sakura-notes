@@ -9,7 +9,7 @@ export default {
 
   // GoatCounter のコード（https://○○○.goatcounter.com の ○○○ の部分）。
   // 空のままなら閲覧数の計測・表示はオフになります。
-  goatcounter: '',
+  goatcounter: 'sakuranotes',
 
   // ホームで最初に表示する件数（残りは「もっと見る」で表示）
   pageSize: 15,
