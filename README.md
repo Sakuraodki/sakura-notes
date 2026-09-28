@@ -3,6 +3,8 @@
 日々の気づきを残すブログ。Markdown で書いて GitHub に push すると、GitHub Pages に自動で公開されます。
 外部パッケージは使っていません（Node.js だけで動きます）。
 
+公開ページ: https://sakuraodki.github.io/sakura-notes/
+
 ---
 
 ## はじめて公開するまで
