@@ -1,0 +1,16 @@
+{
+  "name": "sakura-notes",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SakuraNotes — 日々の気づきを残すブログ",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/dev.mjs",
+    "new:post": "node scripts/new.mjs post",
+    "new:note": "node scripts/new.mjs note"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

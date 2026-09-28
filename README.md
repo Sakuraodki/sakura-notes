@@ -1,0 +1,155 @@
+# SakuraNotes
+
+日々の気づきを残すブログ。Markdown で書いて GitHub に push すると、GitHub Pages に自動で公開されます。
+外部パッケージは使っていません（Node.js だけで動きます）。
+
+---
+
+## はじめて公開するまで
+
+### 1. GitHub にリポジトリを作る
+
+GitHub で **New repository** を開き、次のように作ります。
+
+- **Repository name**
+  - `ユーザー名.github.io` にすると → `https://ユーザー名.github.io/`
+  - それ以外（例: `sakura-notes`）にすると → `https://ユーザー名.github.io/sakura-notes/`
+- **Public** を選ぶ
+- README などは追加しない（空のまま作る）
+
+どちらの名前でもそのまま動きます（公開先のパスは自動で設定されます）。
+
+### 2. このフォルダを push する
+
+このフォルダでターミナル（PowerShell）を開いて、次を実行します。
+`ユーザー名` と `リポジトリ名` は自分のものに置き換えてください。
+
+```powershell
+git init
+git add .
+git commit -m "SakuraNotes をはじめる"
+git branch -M main
+git remote add origin https://github.com/ユーザー名/リポジトリ名.git
+git push -u origin main
+```
+
+GitHub Desktop を使う場合は、File → Add local repository でこのフォルダを選び、Publish repository でも OK です。
+
+### 3. GitHub Pages を GitHub Actions で公開する設定にする
+
+リポジトリの **Settings → Pages → Build and deployment → Source** を **GitHub Actions** にします。
+
+### 4. 公開を待つ
+
+**Actions** タブで「Deploy to GitHub Pages」が緑になったら公開完了です（1〜2分）。
+次からは push するたびに自動で更新されます。
+
+---
+
+## 書き方
+
+### 記事 — `content/posts/好きな名前.md`
+
+ファイル名がそのまま URL になります（`/posts/好きな名前/`）。半角英数字とハイフンがおすすめです。
+
+```markdown
+---
+title: 小さく作って、早く見せる
+date: 2026-09-27
+tags: [開発, 振り返り]
+description: 一覧に出る要約と、記事の最初に出るリード文（省略可）
+---
+
+## 見出し
+
+本文。**太字**、[リンク](https://example.com)、`コード` が使えます。
+
+> 引用
+
+- 箇条書き
+1. 番号つき
+
+![画像の説明](/images/photo.jpg)
+```
+
+- `## 見出し` は番号つきの見出しになり、記事の左側に目次が自動で出ます
+- `draft: true` を書くと公開されません（下書き）
+- `cover: /images/cover.jpg` で記事のトップ画像
+
+### ひとこと — `content/notes/好きな名前.md`
+
+```markdown
+---
+date: 2026-09-28 21:40
+tags: [デザイン]
+---
+
+機能から形が決まっているものは、ずっと見ていても疲れない。
+```
+
+ファイル名は `2026-09-28-2140.md` のように日時にしておくと管理しやすいです。
+
+### スマホから投稿する
+
+GitHub のアプリか github.com でリポジトリを開き、`content/notes` フォルダで **Add file → Create new file** から上の形式で書いてコミットすれば公開されます。
+
+### コマンドでファイルを作る
+
+```powershell
+npm run new:note -- "いま気づいたこと"
+npm run new:post -- my-post "記事のタイトル"
+```
+
+### 画像
+
+`public/images/` に置いて、本文で `![説明](/images/ファイル名.jpg)` と書きます。
+
+---
+
+## 手元で確認する
+
+Node.js 18 以上が必要です。
+
+```powershell
+npm run dev
+```
+
+→ http://localhost:4321 を開きます。ファイルを保存すると自動でビルドし直すので、ブラウザを再読み込みしてください。
+
+---
+
+## 閲覧数（GoatCounter）
+
+1. https://www.goatcounter.com/ でアカウントを作る（個人の非商用利用なら無料）
+   - 登録時の **Code** が `https://○○○.goatcounter.com` の ○○○ になります
+2. `site.config.mjs` の `goatcounter: ''` に、その Code を入れて push
+3. GoatCounter の **Settings** で **Allow adding visitor counts on your website** をオンにして保存
+
+これで計測が始まり、ホームの「閲覧数」、記事の「VIEWS」、フッターの「TOTAL VIEWS」に数字が出ます。
+GoatCounter 側のキャッシュで、反映まで最大 4 時間ほどかかることがあります。空のままなら閲覧数の表示は出ません。
+
+---
+
+## 設定
+
+`site.config.mjs` でサイト名・キャッチコピー・説明文・アクセントカラー・1ページの表示件数などを変えられます。
+About ページの中身は `content/about.md` です。
+
+## ファイル構成
+
+```
+content/
+  posts/      記事
+  notes/      ひとこと
+  about.md    About ページ
+public/
+  assets/     スタイル（style.css）と動き（app.js）
+  images/     画像置き場
+scripts/
+  build.mjs   サイトを dist/ に書き出す
+  markdown.mjs  Markdown の変換
+  dev.mjs     手元確認用サーバー
+  new.mjs     新規ファイル作成
+site.config.mjs  設定
+.github/workflows/deploy.yml  GitHub Pages への自動公開
+```
