@@ -1,0 +1,18 @@
+# SakuraNotes コメント API の設定（Cloudflare Workers）
+name = "sakura-comments"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+# コメントを受け付けるサイト（カンマ区切り）。手元確認用に localhost も入れています。
+ALLOWED_ORIGINS = "https://sakuraodki.github.io,http://localhost:4321"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sakura-comments"
+# Cloudflare のダッシュボードで D1 データベースを作ったときの ID をここに入れます
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
+# シークレット（ダッシュボードの Settings → Variables and Secrets で設定。ここには書かない）
+#   TURNSTILE_SECRET : Turnstile のシークレットキー
+#   ADMIN_PASSWORD   : 管理ページのパスワード

@@ -11,6 +11,14 @@ export default {
   // 空のままなら閲覧数の計測・表示はオフになります。
   goatcounter: 'sakuranotes',
 
+  // コメント機能（Cloudflare Workers のコメント API）。どちらかが空ならコメント欄は出ません。
+  comments: {
+    // コメント API の URL（例: https://sakura-comments.○○○.workers.dev）
+    api: '',
+    // Cloudflare Turnstile のサイトキー（公開してよいほうのキー）
+    turnstileSiteKey: '',
+  },
+
   // ホームで最初に表示する件数（残りは「もっと見る」で表示）
   pageSize: 15,
 

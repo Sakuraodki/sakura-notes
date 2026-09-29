@@ -18,6 +18,9 @@ const origin = (process.env.SITE_ORIGIN || '').replace(/\/+$/, '');
 const u = (p) => base + p;
 const resolveUrl = (url) => (url.startsWith('/') && !url.startsWith('//') ? base + url : url);
 const gc = String(config.goatcounter || '').trim();
+const commentApi = String(config.comments?.api || '').trim().replace(/\/+$/, '');
+const turnstileKey = String(config.comments?.turnstileSiteKey || '').trim();
+const commentsOn = !!(commentApi && turnstileKey);
 
 const DOWS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const pad = (n) => String(n).padStart(2, '0');
@@ -146,7 +149,7 @@ ${tags}
 </article>`;
 }
 
-function layout({ title, description = config.description, body, page = '', ogType = 'website' }) {
+function layout({ title, description = config.description, body, page = '', ogType = 'website', noindex = false, scripts = '' }) {
   const fullTitle = title ? `${title} — ${config.title}` : config.title;
   const drawerTags = tagList.map(([t]) => chip(t, null)).join('');
   return `<!doctype html>
@@ -156,6 +159,7 @@ function layout({ title, description = config.description, body, page = '', ogTy
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(fullTitle)}</title>
 <meta name="description" content="${esc(description)}">
+${noindex ? '<meta name="robots" content="noindex, nofollow">\n' : ''}
 <meta property="og:title" content="${esc(fullTitle)}">
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:type" content="${ogType}">
@@ -169,7 +173,7 @@ function layout({ title, description = config.description, body, page = '', ogTy
 <link rel="stylesheet" href="${u('/assets/style.css')}">
 <style>:root{--accent:${esc(config.accent || '#D4561E')}}</style>
 </head>
-<body data-page="${page}" data-base="${base}"${gc ? ` data-gc="${esc(gc)}"` : ''}>
+<body data-page="${page}" data-base="${base}"${gc && !noindex ? ` data-gc="${esc(gc)}"` : ''}${commentsOn ? ` data-comments-api="${esc(commentApi)}" data-turnstile-key="${esc(turnstileKey)}"` : ''}>
 <a class="skip" href="#main">本文へ移動</a>
 <header class="site-header">
 <a class="brand" href="${u('/')}" aria-label="${esc(config.title)} ホーム">${icon.logo}<span>${esc(config.title)}</span></a>
@@ -207,7 +211,8 @@ ${body}
 <div class="footer-links"><a href="${u('/about/')}">About</a><a href="${u('/feed.xml')}">RSS</a></div>
 </footer>
 <script src="${u('/assets/app.js')}" defer></script>
-${gc ? `<script data-goatcounter="https://${esc(gc)}.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>` : ''}
+${scripts}
+${gc && !noindex ? `<script data-goatcounter="https://${esc(gc)}.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>` : ''}
 </body>
 </html>
 `;
@@ -335,10 +340,14 @@ ${p.html}
 </div>
 ${nav}
 ${rel}
+${commentsOn ? commentsSection(p) : ''}
 </div>
 </article>
 `;
-  return layout({ title: p.title, description: p.description || p.excerpt, body, page: 'post', ogType: 'article' });
+  const scripts = commentsOn
+    ? `<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>\n<script src="${u('/assets/comments.js')}" defer></script>`
+    : '';
+  return layout({ title: p.title, description: p.description || p.excerpt, body, page: 'post', ogType: 'article', scripts });
 }
 
 function archivePage() {
@@ -364,6 +373,63 @@ function aboutPage() {
 <div class="prose">${html}</div>
 </div>`;
   return layout({ title: 'About', body, page: 'about' });
+}
+
+function commentsSection(p) {
+  return `<section class="comments" id="comments" data-comment-page="${esc(p.slug)}" aria-labelledby="comments-title">
+<h2 id="comments-title" class="comments-title"><span class="eyebrow">COMMENTS</span><span>コメント</span><span class="comments-count" data-comment-count></span></h2>
+<div class="comment-list" data-comment-list aria-live="polite"><p class="muted comment-empty">読み込み中…</p></div>
+<form class="comment-form" data-comment-form novalidate>
+<div class="field">
+<label for="c-name">名前<span class="optional">（任意）</span></label>
+<input id="c-name" name="name" type="text" maxlength="30" placeholder="名無しさん" autocomplete="off">
+</div>
+<div class="field">
+<label for="c-body">コメント</label>
+<textarea id="c-body" name="body" rows="4" maxlength="1000" required></textarea>
+<span class="char-count" data-char-count>0 / 1000</span>
+</div>
+<div class="hp" aria-hidden="true"><label>Website <input name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
+<div class="turnstile" data-turnstile></div>
+<p class="form-note">コメントは管理者が確認してから公開されます。URL（リンク）は書き込めません。IP アドレスは保存せず、連投防止のために暗号化した値だけを使います。</p>
+<div class="form-actions">
+<button type="submit" class="btn-primary" data-comment-submit>送信する</button>
+<span class="form-status" data-form-status role="status"></span>
+</div>
+</form>
+</section>`;
+}
+
+function adminPage() {
+  const body = `<div class="container page admin" data-admin>
+<span class="eyebrow">ADMIN</span>
+<h1 class="page-title">コメント管理</h1>
+<form class="admin-login" data-admin-login>
+<div class="field">
+<label for="admin-pass">管理パスワード</label>
+<input id="admin-pass" type="password" autocomplete="current-password" required>
+</div>
+<div class="form-actions"><button type="submit" class="btn-primary">ログイン</button><span class="form-status" data-login-status role="status"></span></div>
+<p class="form-note">パスワードはこのタブを閉じると消えます。</p>
+</form>
+<div class="admin-panel" data-admin-panel hidden>
+<div class="admin-bar">
+<div class="tabs" role="group" aria-label="表示するコメント">
+<button type="button" data-status="pending" aria-pressed="true">承認待ち</button>
+<button type="button" data-status="approved" aria-pressed="false">公開中</button>
+</div>
+<button type="button" class="btn-outline" data-admin-logout>ログアウト</button>
+</div>
+<div class="admin-list" data-admin-list aria-live="polite"></div>
+</div>
+</div>`;
+  return layout({
+    title: 'コメント管理',
+    body,
+    page: 'admin',
+    noindex: true,
+    scripts: `<script src="${u('/assets/admin.js')}" defer></script>`,
+  });
 }
 
 function notFoundPage() {
@@ -431,6 +497,7 @@ posts.forEach((p, i) => write(`posts/${p.slug}/index.html`, postPage(p, i)));
 write('archive/index.html', archivePage());
 write('about/index.html', aboutPage());
 write('404.html', notFoundPage());
+if (commentsOn) write('admin/index.html', adminPage());
 write('feed.xml', feed());
 write('.nojekyll', '');
 
