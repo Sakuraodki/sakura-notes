@@ -11,7 +11,7 @@ ALLOWED_ORIGINS = "https://sakuraodki.github.io,http://localhost:4321"
 binding = "DB"
 database_name = "sakura-comments"
 # Cloudflare のダッシュボードで D1 データベースを作ったときの ID をここに入れます
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "9a9a59e9-0ab2-4f52-89b9-a570c63ac868"
 
 # シークレット（ダッシュボードの Settings → Variables and Secrets で設定。ここには書かない）
 #   TURNSTILE_SECRET : Turnstile のシークレットキー
