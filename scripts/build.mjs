@@ -391,7 +391,7 @@ function commentsSection(p) {
 </div>
 <div class="hp" aria-hidden="true"><label>Website <input name="website" type="text" tabindex="-1" autocomplete="off"></label></div>
 <div class="turnstile" data-turnstile></div>
-<p class="form-note">コメントは管理者が確認してから公開されます。URL（リンク）は書き込めません。IP アドレスは保存せず、連投防止のために暗号化した値だけを使います。</p>
+<p class="form-note">内容によっては、管理者が確認してから公開されます。URL（リンク）は書き込めません。IP アドレスは保存せず、連投防止のために暗号化した値だけを使います。</p>
 <div class="form-actions">
 <button type="submit" class="btn-primary" data-comment-submit>送信する</button>
 <span class="form-status" data-form-status role="status"></span>

@@ -60,9 +60,9 @@
     });
   }
 
-  async function load() {
+  async function load(fresh) {
     try {
-      const res = await fetch(`${api}/comments?page=${encodeURIComponent(page)}`);
+      const res = await fetch(`${api}/comments?page=${encodeURIComponent(page)}`, fresh ? { cache: 'reload' } : {});
       if (!res.ok) throw new Error(res.status);
       render((await res.json()).comments || []);
     } catch {
@@ -118,7 +118,12 @@
       } else {
         form.reset();
         charCount.textContent = '0 / 1000';
-        setStatus('送信しました。確認後に公開されます。ありがとうございます！', 'ok');
+        if (out.status === 'approved') {
+          setStatus('コメントを公開しました。ありがとうございます！', 'ok');
+          load(true);
+        } else {
+          setStatus('送信しました。内容を確認してから公開されます。ありがとうございます！', 'ok');
+        }
       }
     } catch {
       setStatus('通信に失敗しました。時間をおいてもう一度お試しください。', 'error');

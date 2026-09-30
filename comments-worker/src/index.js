@@ -2,7 +2,7 @@
 //
 // 公開 API
 //   GET  /comments?page=<記事のスラッグ>     承認済みコメントの一覧
-//   POST /comments                          コメントを投稿（承認待ちとして保存）
+//   POST /comments                          コメントを投稿（ふつうはすぐ公開。要注意ワードを含むものだけ承認待ち）
 // 管理 API（Authorization: Bearer <ADMIN_PASSWORD>）
 //   GET  /admin/comments?status=pending|approved
 //   POST /admin/comments/<id>/approve       承認して公開
@@ -14,6 +14,7 @@
 //   D1 バインディング   DB
 //   シークレット         TURNSTILE_SECRET（Turnstile のシークレットキー）, ADMIN_PASSWORD（管理ページのパスワード）
 //   変数                 ALLOWED_ORIGINS（コメントを受け付けるサイトのオリジン。カンマ区切り）
+//   任意のシークレット   DISCORD_WEBHOOK_URL（新しいコメントを Discord に通知する Webhook の URL）
 //
 // プライバシー: IP アドレスはそのまま保存せず、ランダムな salt 付きのハッシュだけを保存します（連投制限とブロックのため）。
 
@@ -33,7 +34,7 @@ const NG_WORDS = ['死ね', 'しね', '殺す', 'ころす', '消えろ', 'き�
 const URL_PATTERN = /(https?:\/\/|www\.|[a-z0-9-]+\.(com|net|org|jp|io|xyz|info|ru|cn|top|site|online|link|ly)\b)/i;
 
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
     const allowed = allowedOrigins(env);
     const cors = corsHeaders(allowed.includes(origin) ? origin : '');
@@ -48,7 +49,7 @@ export default {
       if (path === '/comments' && request.method === 'GET') return listPublic(url, env, cors);
       if (path === '/comments' && request.method === 'POST') {
         if (!allowed.includes(origin)) return json({ error: 'このサイトからは投稿できません。' }, 403, cors);
-        return postComment(request, env, cors);
+        return postComment(request, env, cors, ctx);
       }
       if (path.startsWith('/admin/')) return admin(request, env, cors, path, url);
       if (path === '/') return json({ ok: true, service: 'sakura-comments' }, 200, cors);
@@ -71,7 +72,7 @@ async function listPublic(url, env, cors) {
   return json({ comments: results.map(publicShape) }, 200, { ...cors, 'Cache-Control': 'public, max-age=30' });
 }
 
-async function postComment(request, env, cors) {
+async function postComment(request, env, cors, ctx) {
   let data;
   try { data = await request.json(); } catch { return json({ error: '送信内容が読み取れませんでした。' }, 400, cors); }
 
@@ -117,12 +118,20 @@ async function postComment(request, env, cors) {
   const pending = await env.DB.prepare(`SELECT COUNT(*) AS n FROM comments WHERE status = 'pending'`).first();
   if (pending && pending.n >= LIMITS.pendingMax) return json({ error: '現在コメントを受け付けていません。' }, 503, cors);
 
+  // 要注意ワードを含むものだけ承認待ちにして、それ以外はすぐ公開する
   const flagged = NG_WORDS.some((w) => (body + ' ' + name).toLowerCase().includes(w.toLowerCase())) ? 1 : 0;
-  await env.DB.prepare(
-    `INSERT INTO comments (page, name, body, status, flagged, ip_hash, created_at) VALUES (?, ?, ?, 'pending', ?, ?, ?)`
-  ).bind(page, name, body, flagged, ipHash, now).run();
+  const status = flagged ? 'pending' : 'approved';
+  const res = await env.DB.prepare(
+    `INSERT INTO comments (page, name, body, status, flagged, ip_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).bind(page, name, body, status, flagged, ipHash, now).run();
 
-  return json({ ok: true, status: 'pending' }, 201, cors);
+  if (env.DISCORD_WEBHOOK_URL) {
+    const task = notifyDiscord(env.DISCORD_WEBHOOK_URL, { page, name, body, status, origin: request.headers.get('Origin') || '' })
+      .catch((err) => console.error('discord', err));
+    if (ctx && ctx.waitUntil) ctx.waitUntil(task); else await task;
+  }
+
+  return json({ ok: true, status, id: res.meta && res.meta.last_row_id }, 201, cors);
 }
 
 // ---------- 管理 API ----------
@@ -226,6 +235,20 @@ async function safeEqual(a, b) {
   let diff = 0;
   for (let i = 0; i < x.length; i++) diff |= x.charCodeAt(i) ^ y.charCodeAt(i);
   return diff === 0 && a.length > 0;
+}
+
+async function notifyDiscord(webhook, c) {
+  const base = c.origin === 'https://sakuraodki.github.io' ? 'https://sakuraodki.github.io/sakura-notes' : c.origin;
+  const head = c.status === 'pending' ? '⚠️ 要注意ワードを含むコメント（承認待ち）' : '💬 新しいコメント（公開済み）';
+  const text = c.body.length > 800 ? c.body.slice(0, 800) + '…' : c.body;
+  const content = `${head}\n**${c.name}** — ${base}/posts/${c.page}/#comments\n>>> ${text}\n\n管理ページ: ${base}/admin/`;
+  const res = await fetch(webhook, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    // allowed_mentions を空にして、@everyone などのメンションが飛ばないようにする
+    body: JSON.stringify({ content: content.slice(0, 1900), allowed_mentions: { parse: [] } }),
+  });
+  if (!res.ok) throw new Error('discord webhook ' + res.status);
 }
 
 async function verifyTurnstile(token, ip, secret) {
