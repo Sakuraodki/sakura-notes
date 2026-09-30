@@ -14,9 +14,9 @@ export default {
   // コメント機能（Cloudflare Workers のコメント API）。どちらかが空ならコメント欄は出ません。
   comments: {
     // コメント API の URL（例: https://sakura-comments.○○○.workers.dev）
-    api: '',
+    api: 'https://sakura-comments.sakuranotes.workers.dev',
     // Cloudflare Turnstile のサイトキー（公開してよいほうのキー）
-    turnstileSiteKey: '',
+    turnstileSiteKey: '0x4AAAAAAFI9l9AYoKn_F1ly',
   },
 
   // ホームで最初に表示する件数（残りは「もっと見る」で表示）
