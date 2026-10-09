@@ -111,6 +111,9 @@ body:not([data-gc]) .gc-only { display: none !important; }
 .note-text > *:last-child { margin-bottom: 0; }
 .note-text a { text-decoration: underline; text-underline-offset: 3px; }
 .note-text img { border-radius: 6px; }
+.note-link { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; color: var(--sub); }
+.note-link:hover { color: var(--accent); }
+.note-page .note-text { font-size: 20px; }
 .tags, .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .entry .tags { margin-top: 2px; }
 .chip {

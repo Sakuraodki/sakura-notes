@@ -1,4 +1,4 @@
-// SakuraNotes — 記事ページのコメント欄（表示と投稿）
+// SakuraNotes — 記事・ひとことページのコメント欄（表示と投稿）
 (() => {
   const api = document.body.dataset.commentsApi;
   const siteKey = document.body.dataset.turnstileKey;
