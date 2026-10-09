@@ -1,0 +1,21 @@
+# PR の段階で、位置情報（GPS）つきの画像・動画が入っていないかを確かめます。
+name: Check images
+
+on:
+  pull_request:
+    paths:
+      - 'public/**'
+
+permissions:
+  contents: read
+
+jobs:
+  location:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: 位置情報のチェック
+        run: node scripts/check-images.mjs

@@ -10,6 +10,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import config from '../site.config.mjs';
 import { markdown, frontMatter, plainText, escapeHtml as esc } from './markdown.mjs';
+import { findLocationFiles, reportLocationFiles } from './check-images.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
@@ -487,6 +488,13 @@ if (problems.length) {
   console.error('\n⚠ 読み込めなかったファイルがあります:');
   for (const p of problems) console.error('  - ' + p);
   console.error('');
+}
+
+// 位置情報（GPS）つきの画像・動画があれば公開しないように止める
+const located = findLocationFiles(path.join(root, 'public'));
+if (located.length) {
+  reportLocationFiles(located, root);
+  process.exit(1);
 }
 
 fs.rmSync(dist, { recursive: true, force: true });
