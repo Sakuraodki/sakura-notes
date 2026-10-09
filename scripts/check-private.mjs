@@ -6,7 +6,9 @@
 //   - 環境変数 PRIVATE_WORDS        GitHub の Secrets に登録して、Actions から渡す
 //   - ファイル .private-words       手元で確かめる用（.gitignore 済みなので公開されない）
 // 1行に1つ（またはカンマ区切り）。# で始まる行は無視します。
-// 結果には言葉そのものは出さず「何番目の言葉か」だけを出します（Actions のログは公開されるため）。
+// 結果に言葉そのものは出しません。GitHub Actions では場所（ファイル・行）も出しません。
+// Actions のログは誰でも見られるので、場所が出ると「この行の言葉を隠したいのだな」と分かってしまうためです。
+// 場所は、手元で .private-words を置いて実行すると表示されます。
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -59,6 +61,10 @@ export function findPrivateWords(dir = root, words = loadPrivateWords(dir)) {
 
 export function reportPrivateWords(hits, dir = root) {
   console.error('\n✋ 身バレにつながる言葉が見つかったので、止めました。');
+  if (process.env.GITHUB_ACTIONS) {
+    console.error('  （公開されるログなので、場所は表示しません。最近書いた投稿やファイル名を見直してください）\n');
+    return;
+  }
   for (const h of hits) {
     const where = h.line ? `${h.line} 行目` : 'ファイル名';
     console.error(`  - ${path.relative(dir, h.file)}（${where}）: 登録した言葉の ${h.word} 番目`);
