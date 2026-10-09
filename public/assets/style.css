@@ -381,3 +381,26 @@ button.cal-cell:hover .n { background: var(--panel); }
   .arc-kind .dot { width: 6px; height: 6px; }
   .arc-kind:not(:has(.dot))::before { content: ''; }
 }
+
+/* ---------- 動画（X 風のインライン表示） ---------- */
+.video-frame { position: relative; display: block; margin: 0; border-radius: 12px; overflow: hidden; background: #000; max-width: 560px; }
+.prose .video-frame { max-width: 100%; }
+.video-frame video { display: block; width: 100%; height: auto; max-height: 70vh; background: #000; }
+.video-frame.is-enhanced video { cursor: pointer; }
+.video-time, .video-sound { display: none; }
+.video-frame.is-enhanced .video-time, .video-frame.is-enhanced .video-sound { display: inline-flex; }
+.video-time {
+  position: absolute; left: 10px; bottom: 10px; padding: 2px 6px; border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6); color: #fff; font-family: var(--mono); font-size: 12px; line-height: 1.4; pointer-events: none;
+}
+.video-time:empty { display: none !important; }
+.video-sound {
+  position: absolute; right: 10px; bottom: 10px; width: 32px; height: 32px; padding: 0; border: 0; border-radius: 50%;
+  align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.6); color: #fff; cursor: pointer;
+}
+.video-sound:hover { background: rgba(0, 0, 0, 0.8); }
+.video-sound .sound-on, .video-frame.is-sound .video-sound .sound-off { display: none; }
+.video-frame.is-sound .video-sound .sound-on { display: inline; }
+figure.video figcaption { margin-top: 8px; }
+.note-text figure { margin-left: 0; margin-right: 0; }
+.note-text figure figcaption { font-family: var(--mono); font-size: 12px; color: var(--sub); margin-top: 8px; }

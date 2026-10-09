@@ -1,5 +1,5 @@
 // 依存ゼロの小さな Markdown 変換器。
-// 対応: 見出し / 段落 / 改行 / リスト / 引用 / コード / 区切り線 / 画像 / リンク / 太字 / 斜体 / インラインコード
+// 対応: 見出し / 段落 / 改行 / リスト / 引用 / コード / 区切り線 / 画像 / 動画 / リンク / 太字 / 斜体 / インラインコード
 
 export function escapeHtml(s) {
   return String(s)
@@ -16,6 +16,17 @@ function safeUrl(url) {
   return u;
 }
 
+// 画像と同じ書き方で、拡張子が動画なら X のようなインライン動画にする（再生の動きは assets/app.js）
+const VIDEO_EXT = /\.(mp4|m4v|webm|mov)(?:[?#].*)?$/i;
+const isVideo = (src) => VIDEO_EXT.test(src);
+const SOUND_ICON = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path class="sound-off" d="M17 9l5 6M22 9l-5 6"/><path class="sound-on" d="M17 8.5a5 5 0 0 1 0 7M19.5 6a8.5 8.5 0 0 1 0 12"/></svg>';
+function videoHtml(url, alt) {
+  // JavaScript が動かない環境でも再生できるよう controls を付けておき、app.js が外す
+  return `<span class="video-frame" data-video><video src="${url}" muted loop playsinline preload="metadata" controls${alt ? ` aria-label="${alt}"` : ''}></video>` +
+    `<span class="video-time" data-video-time></span>` +
+    `<button type="button" class="video-sound" data-video-sound aria-label="音声をオンにする" aria-pressed="false">${SOUND_ICON}</button></span>`;
+}
+
 // resolve: 画像やリンクの相対パス（/ で始まるもの）にベースパスを付けるための関数
 export function inline(text, resolve = (u) => u) {
   const codes = [];
@@ -24,8 +35,11 @@ export function inline(text, resolve = (u) => u) {
     return `\u0000${codes.length - 1}\u0000`;
   });
   s = escapeHtml(s);
-  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;([^&]*)&quot;)?\)/g, (_, alt, src, title) =>
-    `<img src="${escapeHtml(resolve(safeUrl(unescape(src))))}" alt="${alt}" loading="lazy"${title ? ` title="${title}"` : ''}>`);
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;([^&]*)&quot;)?\)/g, (_, alt, src, title) => {
+    const url = escapeHtml(resolve(safeUrl(unescape(src))));
+    if (isVideo(src)) return videoHtml(url, alt);
+    return `<img src="${url}" alt="${alt}" loading="lazy"${title ? ` title="${title}"` : ''}>`;
+  });
   s = s.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_, label, href) => {
     const h = resolve(safeUrl(unescape(href)));
     const ext = /^https?:\/\//.test(h);
@@ -112,7 +126,8 @@ export function markdown(src, resolve) {
     // 画像だけの行は figure に
     const img = line.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (img) {
-      out.push(`<figure>${inline(line.trim(), resolve)}${img[1] ? `<figcaption>${escapeHtml(img[1])}</figcaption>` : ''}</figure>`);
+      const cls = isVideo(img[2].trim().split(/\s+/)[0]) ? ' class="video"' : '';
+      out.push(`<figure${cls}>${inline(line.trim(), resolve)}${img[1] ? `<figcaption>${escapeHtml(img[1])}</figcaption>` : ''}</figure>`);
       i++;
       continue;
     }
