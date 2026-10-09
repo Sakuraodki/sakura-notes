@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import config from '../site.config.mjs';
 import { markdown, frontMatter, plainText, escapeHtml as esc } from './markdown.mjs';
 import { findLocationFiles, reportLocationFiles } from './check-images.mjs';
+import { findPrivateWords, reportPrivateWords } from './check-private.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(root, 'dist');
@@ -22,6 +23,8 @@ const gc = String(config.goatcounter || '').trim();
 const commentApi = String(config.comments?.api || '').trim().replace(/\/+$/, '');
 const turnstileKey = String(config.comments?.turnstileSiteKey || '').trim();
 const commentsOn = !!(commentApi && turnstileKey);
+// シェアしたときのカード画像（X などは絶対 URL が必要なので、SITE_ORIGIN があるときだけ）
+const ogImage = origin && config.ogImage ? origin + base + config.ogImage : '';
 
 const DOWS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 const pad = (n) => String(n).padStart(2, '0');
@@ -119,6 +122,9 @@ const icon = {
   menu: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 8h16M4 16h16"/></svg>',
   prev: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>',
   next: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>',
+  heart: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10.1A4.4 4.4 0 0 1 12 7.2a4.4 4.4 0 0 1 7.5 2.7C19.5 15.4 12 20 12 20z"/></svg>',
+  moon: '<svg class="i-moon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
+  sun: '<svg class="i-sun" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg>',
   logo: '<svg class="logo" width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect x="1" y="9" width="18" height="18" fill="currentColor"/><circle cx="19" cy="9" r="8" fill="var(--accent)"/></svg>',
 };
 
@@ -128,6 +134,14 @@ const chip = (t, count, cls = '') =>
 
 function dateLabel(e) {
   return e.date.y === latestYear ? e.date.short : e.date.full;
+}
+
+// いいねボタンとコメント数（コメント機能がオンのときだけ）
+function actionsHtml(e, cls, commentHref) {
+  return `<div class="${cls}" data-stats="${esc(e.commentKey)}">
+<button type="button" class="like-btn" data-like aria-pressed="false" aria-label="いいね" hidden>${icon.heart}<span class="like-count" data-like-count></span></button>
+<a class="note-link" href="${commentHref}">コメント<span class="count" data-comment-total></span><span aria-hidden="true">→</span></a>
+</div>`;
 }
 
 function entryHtml(e) {
@@ -140,6 +154,7 @@ function entryHtml(e) {
 <h2 class="entry-title"><a href="${u(e.url)}">${esc(e.title)}</a></h2>
 <p class="entry-excerpt">${esc(e.excerpt)}</p>
 ${tags}
+${commentsOn ? actionsHtml(e, 'entry-actions', `${u(e.url)}#comments`) : ''}
 </div>
 </article>`;
   }
@@ -149,7 +164,7 @@ ${tags}
 <span class="entry-kind"><span class="dot"></span>ひとこと</span>
 <div class="note-text">${e.html}</div>
 ${tags}
-<a class="note-link" href="${u(e.url)}${commentsOn ? '#comments' : ''}">${commentsOn ? 'コメントする' : 'この投稿へ'}<span aria-hidden="true">→</span></a>
+${commentsOn ? actionsHtml(e, 'entry-actions', `${u(e.url)}#comments`) : `<a class="note-link" href="${u(e.url)}">この投稿へ<span aria-hidden="true">→</span></a>`}
 </div>
 </article>`;
 }
@@ -169,7 +184,13 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">\n' : ''}
 <meta property="og:description" content="${esc(description)}">
 <meta property="og:type" content="${ogType}">
 <meta property="og:site_name" content="${esc(config.title)}">
-<meta name="theme-color" content="#F2F1ED">
+<meta name="theme-color" content="#F2F1ED" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#161615" media="(prefers-color-scheme: dark)">
+${ogImage ? `<meta property="og:image" content="${esc(ogImage)}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">` : ''}
+<script>try{var t=localStorage.getItem('theme');if(t==='dark'||t==='light')document.documentElement.dataset.theme=t}catch(e){}</script>
 <link rel="icon" href="${u('/favicon.svg')}" type="image/svg+xml">
 <link rel="alternate" type="application/rss+xml" title="${esc(config.title)}" href="${u('/feed.xml')}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -189,6 +210,7 @@ ${noindex ? '<meta name="robots" content="noindex, nofollow">\n' : ''}
 <a href="${u('/about/')}">About</a>
 </nav>
 <div class="header-actions">
+<button type="button" class="icon-btn theme-btn" data-theme-toggle aria-label="ダークモードの切り替え">${icon.moon}${icon.sun}</button>
 <button type="button" class="icon-btn" data-toggle="drawer-search" aria-controls="drawer-search" aria-expanded="false" aria-label="検索">${icon.search}</button>
 <button type="button" class="icon-btn" data-toggle="drawer-menu" aria-controls="drawer-menu" aria-expanded="false" aria-label="メニュー">${icon.menu}</button>
 </div>
@@ -216,6 +238,7 @@ ${body}
 <div class="footer-links"><a href="${u('/about/')}">About</a><a href="${u('/feed.xml')}">RSS</a></div>
 </footer>
 <script src="${u('/assets/app.js')}" defer></script>
+${commentsOn ? `<script src="${u('/assets/reactions.js')}" defer></script>` : ''}
 ${scripts}
 ${gc && !noindex ? `<script data-goatcounter="https://${esc(gc)}.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>` : ''}
 </body>
@@ -343,6 +366,7 @@ ${cover}
 <div class="prose">
 ${p.html}
 </div>
+${commentsOn ? actionsHtml(p, 'page-actions', '#comments') : ''}
 ${nav}
 ${rel}
 ${commentsOn ? commentsSection(p) : ''}
@@ -371,6 +395,7 @@ ${n.tags.length ? `<div class="meta-block"><span class="eyebrow">TAGS</span><div
 <div class="post-main">
 <span class="entry-kind"><span class="dot"></span>ひとこと</span>
 <div class="note-text">${n.html}</div>
+${commentsOn ? actionsHtml(n, 'page-actions', '#comments') : ''}
 ${nav}
 ${commentsOn ? commentsSection(n) : ''}
 </div>
@@ -529,6 +554,13 @@ if (problems.length) {
 const located = findLocationFiles(path.join(root, 'public'));
 if (located.length) {
   reportLocationFiles(located, root);
+  process.exit(1);
+}
+
+// 身バレにつながる言葉（自分で登録したもの）が入っていれば公開しないように止める
+const privateHits = findPrivateWords(root);
+if (privateHits.length) {
+  reportPrivateWords(privateHits, root);
   process.exit(1);
 }
 

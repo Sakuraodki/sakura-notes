@@ -1,10 +1,14 @@
-# PR の段階で、位置情報（GPS）つきの画像・動画が入っていないかを確かめます。
+# PR の段階で、公開してはいけないものが入っていないかを確かめます。
+#   - 位置情報（GPS）つきの画像・動画
+#   - 身バレにつながる言葉（Secrets の PRIVATE_WORDS に登録したもの）
 name: Check images
 
 on:
   pull_request:
     paths:
       - 'public/**'
+      - 'content/**'
+      - 'site.config.mjs'
 
 permissions:
   contents: read
@@ -19,3 +23,7 @@ jobs:
           node-version: 22
       - name: 位置情報のチェック
         run: node scripts/check-images.mjs
+      - name: 身バレにつながる言葉のチェック
+        run: node scripts/check-private.mjs
+        env:
+          PRIVATE_WORDS: ${{ secrets.PRIVATE_WORDS }}

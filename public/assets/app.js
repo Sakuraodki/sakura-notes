@@ -1,4 +1,4 @@
-// SakuraNotes — ブラウザ側の動き（絞り込み・検索・カレンダー・閲覧数・メニュー・動画）
+// SakuraNotes — ブラウザ側の動き（絞り込み・検索・カレンダー・閲覧数・メニュー・ダークモード・動画）
 (() => {
   const body = document.body;
   const base = body.dataset.base || '';
@@ -29,6 +29,18 @@
       target.hidden = !open;
       btn.setAttribute('aria-expanded', String(open));
       if (open) { const input = $('input', target); if (input) input.focus(); }
+    });
+  });
+
+  // ---------- ダークモード（何もしなければ端末の設定に合わせる） ----------
+  const root = document.documentElement;
+  const darkMq = window.matchMedia('(prefers-color-scheme: dark)');
+  const currentTheme = () => root.dataset.theme || (darkMq.matches ? 'dark' : 'light');
+  $$('[data-theme-toggle]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const next = currentTheme() === 'dark' ? 'light' : 'dark';
+      root.dataset.theme = next;
+      try { localStorage.setItem('theme', next); } catch { /* 保存できなくても切り替えはする */ }
     });
   });
 
