@@ -1,7 +1,7 @@
 // SakuraNotes のコメント API（Cloudflare Workers + D1 + Turnstile）
 //
 // 公開 API
-//   GET  /comments?page=<記事のスラッグ>     承認済みコメントの一覧
+//   GET  /comments?page=<記事のスラッグ / note-ひとことの名前>  承認済みコメントの一覧
 //   POST /comments                          コメントを投稿（ふつうはすぐ公開。要注意ワードを含むものだけ承認待ち）
 // 管理 API（Authorization: Bearer <ADMIN_PASSWORD>）
 //   GET  /admin/comments?status=pending|approved
@@ -241,7 +241,7 @@ async function notifyDiscord(webhook, c) {
   const base = c.origin === 'https://sakuraodki.github.io' ? 'https://sakuraodki.github.io/sakura-notes' : c.origin;
   const head = c.status === 'pending' ? '⚠️ 要注意ワードを含むコメント（承認待ち）' : '💬 新しいコメント（公開済み）';
   const text = c.body.length > 800 ? c.body.slice(0, 800) + '…' : c.body;
-  const content = `${head}\n**${c.name}** — ${base}/posts/${c.page}/#comments\n>>> ${text}\n\n管理ページ: ${base}/admin/`;
+  const content = `${head}\n**${c.name}** — ${base}${pagePath(c.page)}#comments\n>>> ${text}\n\n管理ページ: ${base}/admin/`;
   const res = await fetch(webhook, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -265,6 +265,11 @@ async function verifyTurnstile(token, ip, secret) {
 function clean(s) {
   // 制御文字（改行・タブ以外）と、見えない文字を取り除く
   return s.replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F​-‏‪-‮⁠-⁤﻿]/g, '');
+}
+
+// コメント API の page から、サイト上のパスを作る（ひとことは note- で始まる）
+function pagePath(page) {
+  return page.startsWith('note-') ? `/notes/${page.slice(5)}/` : `/posts/${page}/`;
 }
 
 function isValidPage(p) {

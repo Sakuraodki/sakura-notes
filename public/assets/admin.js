@@ -28,6 +28,9 @@
     return new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
   }
 
+  // コメントの page から、サイト上のパスを作る（ひとことは note- で始まる）
+  const pagePath = (page) => (page.startsWith('note-') ? `/notes/${page.slice(5)}/` : `/posts/${page}/`);
+
   function el(tag, cls, text) {
     const e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -49,8 +52,9 @@
     for (const c of data.comments) {
       const card = el('article', 'admin-item' + (c.flagged ? ' is-flagged' : ''));
       const head = el('div', 'admin-item-head');
-      const link = el('a', 'admin-page', '/posts/' + c.page + '/');
-      link.href = `${base}/posts/${c.page}/#comments`;
+      const path = pagePath(c.page);
+      const link = el('a', 'admin-page', path);
+      link.href = `${base}${path}#comments`;
       link.target = '_blank';
       link.rel = 'noopener';
       head.append(link, el('span', 'comment-name', c.name), el('span', 'comment-date', fmt(c.createdAt)), el('span', 'admin-author', '投稿者ID ' + c.author));

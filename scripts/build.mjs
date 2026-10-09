@@ -88,7 +88,9 @@ function load(type) {
       tags: toTags(data.tags),
       date, html, headings, text,
       excerpt: data.description ? String(data.description) : text.slice(0, 90) + (text.length > 90 ? '…' : ''),
-      url: type === 'post' ? `/posts/${slug}/` : `/?date=${date.iso}#${type}-${slug}`,
+      url: type === 'post' ? `/posts/${slug}/` : `/notes/${slug}/`,
+      // コメント API での識別子（記事はスラッグ、ひとことは note- をつける）
+      commentKey: type === 'post' ? slug : `note-${slug}`,
     }];
   });
 }
@@ -97,6 +99,7 @@ const posts = load('post');
 const notes = load('note');
 const all = [...posts, ...notes].sort((a, b) => b.date.sort.localeCompare(a.date.sort) || a.id.localeCompare(b.id));
 posts.sort((a, b) => b.date.sort.localeCompare(a.date.sort));
+notes.sort((a, b) => b.date.sort.localeCompare(a.date.sort));
 
 const tagCounts = new Map();
 for (const e of all) for (const t of e.tags) tagCounts.set(t, (tagCounts.get(t) || 0) + 1);
@@ -146,6 +149,7 @@ ${tags}
 <span class="entry-kind"><span class="dot"></span>ひとこと</span>
 <div class="note-text">${e.html}</div>
 ${tags}
+<a class="note-link" href="${u(e.url)}${commentsOn ? '#comments' : ''}">${commentsOn ? 'コメントする' : 'この投稿へ'}<span aria-hidden="true">→</span></a>
 </div>
 </article>`;
 }
@@ -345,10 +349,41 @@ ${commentsOn ? commentsSection(p) : ''}
 </div>
 </article>
 `;
-  const scripts = commentsOn
+  return layout({ title: p.title, description: p.description || p.excerpt, body, page: 'post', ogType: 'article', scripts: commentScripts() });
+}
+
+function notePage(n, i) {
+  const newer = notes[i - 1];
+  const older = notes[i + 1];
+  const navText = (e) => esc(e.text.length > 40 ? e.text.slice(0, 40) + '…' : e.text);
+  const nav = `<nav class="post-nav" aria-label="前後のひとこと">
+${older ? `<a href="${u(older.url)}"><span class="eyebrow">← PREV · ${older.date.short}</span><span class="post-nav-title">${navText(older)}</span></a>` : '<span class="post-nav-empty"><span class="eyebrow">← PREV</span><span class="post-nav-title">これが最初のひとことです</span></span>'}
+${newer ? `<a href="${u(newer.url)}" class="post-nav-next"><span class="eyebrow">NEXT · ${newer.date.short} →</span><span class="post-nav-title">${navText(newer)}</span></a>` : '<span class="post-nav-empty post-nav-next"><span class="eyebrow">NEXT →</span><span class="post-nav-title">最新のひとことです</span></span>'}
+</nav>`;
+  const body = `
+<div class="container back-row"><a class="back" href="${u('/?type=note')}"><span aria-hidden="true">←</span>ひとこと一覧にもどる</a></div>
+<article class="post container note-page">
+<aside class="post-meta">
+<div class="meta-block"><span class="eyebrow">PUBLISHED</span><time class="meta-date" datetime="${n.date.iso}${n.date.time ? 'T' + n.date.time : ''}">${n.date.full}</time><span class="meta-sub">${n.date.dow}${n.date.time ? ' · ' + n.date.time : ''}</span></div>
+<div class="meta-block gc-only"><span class="eyebrow"><span class="dot"></span>VIEWS</span><span class="meta-views" data-views="page">—</span></div>
+${n.tags.length ? `<div class="meta-block"><span class="eyebrow">TAGS</span><div class="chips">${n.tags.map((t) => chip(t, null)).join('')}</div></div>` : ''}
+</aside>
+<div class="post-main">
+<span class="entry-kind"><span class="dot"></span>ひとこと</span>
+<div class="note-text">${n.html}</div>
+${nav}
+${commentsOn ? commentsSection(n) : ''}
+</div>
+</article>
+`;
+  const title = `ひとこと ${n.date.full}${n.date.time ? ' ' + n.date.time : ''}`;
+  return layout({ title, description: n.excerpt, body, page: 'note', ogType: 'article', scripts: commentScripts() });
+}
+
+function commentScripts() {
+  return commentsOn
     ? `<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>\n<script src="${u('/assets/comments.js')}" defer></script>`
     : '';
-  return layout({ title: p.title, description: p.description || p.excerpt, body, page: 'post', ogType: 'article', scripts });
 }
 
 function archivePage() {
@@ -377,7 +412,7 @@ function aboutPage() {
 }
 
 function commentsSection(p) {
-  return `<section class="comments" id="comments" data-comment-page="${esc(p.slug)}" aria-labelledby="comments-title">
+  return `<section class="comments" id="comments" data-comment-page="${esc(p.commentKey)}" aria-labelledby="comments-title">
 <h2 id="comments-title" class="comments-title"><span class="eyebrow">COMMENTS</span><span>コメント</span><span class="comments-count" data-comment-count></span></h2>
 <div class="comment-list" data-comment-list aria-live="polite"><p class="muted comment-empty">読み込み中…</p></div>
 <form class="comment-form" data-comment-form novalidate>
@@ -502,6 +537,7 @@ fs.mkdirSync(dist, { recursive: true });
 copyDir(path.join(root, 'public'), dist);
 write('index.html', homePage());
 posts.forEach((p, i) => write(`posts/${p.slug}/index.html`, postPage(p, i)));
+notes.forEach((n, i) => write(`notes/${n.slug}/index.html`, notePage(n, i)));
 write('archive/index.html', archivePage());
 write('about/index.html', aboutPage());
 write('404.html', notFoundPage());
