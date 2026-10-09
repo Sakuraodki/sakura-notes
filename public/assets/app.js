@@ -1,4 +1,4 @@
-// SakuraNotes — ブラウザ側の動き（絞り込み・検索・カレンダー・閲覧数・メニュー）
+// SakuraNotes — ブラウザ側の動き（絞り込み・検索・カレンダー・閲覧数・メニュー・動画）
 (() => {
   const body = document.body;
   const base = body.dataset.base || '';
@@ -54,6 +54,60 @@
     $$('[data-views]').forEach((el) => {
       const key = el.dataset.views === 'page' ? location.pathname : el.dataset.views;
       fetchCount(key).then((c) => { if (c != null) el.textContent = c; });
+    });
+  }
+
+  // ---------- 動画（X のように、見えている間だけ無音で自動再生） ----------
+  const videos = $$('[data-video]');
+  if (videos.length) {
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const fmt = (t) => (Number.isFinite(t) ? `${Math.floor(t / 60)}:${pad(Math.floor(t % 60))}` : '');
+    const setSound = (frame, on) => {
+      const v = $('video', frame);
+      const btn = $('[data-video-sound]', frame);
+      v.muted = !on;
+      frame.classList.toggle('is-sound', on);
+      btn.setAttribute('aria-pressed', String(on));
+      btn.setAttribute('aria-label', on ? '音声をオフにする' : '音声をオンにする');
+    };
+    const muteOthers = (frame) => videos.forEach((f) => { if (f !== frame) setSound(f, false); });
+    const io = 'IntersectionObserver' in window && !reduceMotion
+      ? new IntersectionObserver((list) => list.forEach((en) => {
+        const v = en.target.querySelector('video');
+        if (en.isIntersecting && en.intersectionRatio >= 0.6) v.play().catch(() => {});
+        else v.pause();
+      }), { threshold: [0, 0.6] })
+      : null;
+
+    videos.forEach((frame) => {
+      const v = $('video', frame);
+      const time = $('[data-video-time]', frame);
+      const sound = $('[data-video-sound]', frame);
+      if (!io) return; // 動きを減らす設定のときは、普通のプレーヤーのまま
+      v.controls = false;
+      frame.classList.add('is-enhanced');
+      v.addEventListener('timeupdate', () => { time.textContent = fmt(v.duration - v.currentTime); });
+      v.addEventListener('loadedmetadata', () => { time.textContent = fmt(v.duration); });
+      sound.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        const on = v.muted;
+        if (on) muteOthers(frame);
+        setSound(frame, on);
+        v.play().catch(() => {});
+      });
+      // 動画そのものをタップすると、音声つきの全画面で再生
+      v.addEventListener('click', () => {
+        muteOthers(frame);
+        setSound(frame, true);
+        v.controls = true;
+        v.play().catch(() => {});
+        if (v.requestFullscreen) v.requestFullscreen().catch(() => {});
+        else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+      });
+      const leave = () => { v.controls = false; setSound(frame, false); };
+      v.addEventListener('webkitendfullscreen', leave);
+      document.addEventListener('fullscreenchange', () => { if (document.fullscreenElement !== v) { if (v.controls) leave(); } });
+      io.observe(frame);
     });
   }
 
