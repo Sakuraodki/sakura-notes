@@ -26,5 +26,5 @@ export default {
   pageSize: 15,
 
   // アクセントカラー
-  accent: '#D4561E',
+  accent: '#CC4E73',
 };
