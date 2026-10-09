@@ -17,7 +17,8 @@ SakuraNotes の匿名コメントを保存・配信する Cloudflare Workers の
    - 変数 `ALLOWED_ORIGINS`：`https://sakuraodki.github.io,http://localhost:4321`
    - シークレット `TURNSTILE_SECRET`：Turnstile のシークレットキー
    - シークレット `ADMIN_PASSWORD`：管理ページのパスワード（長めのものにする）
-   - シークレット `DISCORD_WEBHOOK_URL`（任意）：新しいコメントを通知する Discord の Webhook URL
+   - シークレット `DISCORD_WEBHOOK_URL`（任意）：新しいコメントといいねを通知する Discord の Webhook URL
+   - シークレット `DISCORD_LIKES_WEBHOOK_URL`（任意）：いいねだけ別のチャンネルに送るときの Webhook URL（`off` でいいねの通知を止める）
 6. Worker の URL（`https://sakura-comments.○○○.workers.dev`）を `site.config.mjs` の `comments.api` に書く
 
 シークレットはファイルに書かず、必ずダッシュボードで設定してください。

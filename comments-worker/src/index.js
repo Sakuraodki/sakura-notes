@@ -16,7 +16,8 @@
 //   D1 バインディング   DB
 //   シークレット         TURNSTILE_SECRET（Turnstile のシークレットキー）, ADMIN_PASSWORD（管理ページのパスワード）
 //   変数                 ALLOWED_ORIGINS（コメントを受け付けるサイトのオリジン。カンマ区切り）
-//   任意のシークレット   DISCORD_WEBHOOK_URL（新しいコメントを Discord に通知する Webhook の URL）
+//   任意のシークレット   DISCORD_WEBHOOK_URL（新しいコメントといいねを Discord に通知する Webhook の URL）
+//                        DISCORD_LIKES_WEBHOOK_URL（いいねだけ別のチャンネルに送りたいときの Webhook の URL。off で通知しない）
 //
 // プライバシー: IP アドレスはそのまま保存せず、ランダムな salt 付きのハッシュだけを保存します（連投制限とブロックのため）。
 
@@ -30,6 +31,7 @@ const LIMITS = {
   loginFailMax: 10,       // 管理ページのパスワード間違いの上限（15分あたり）
   statsPagesMax: 50,      // /stats で一度に聞けるページ数
   likesPerDay: 200,       // 同じ人が1日にいいねできる数
+  likeNotifySec: 3600,    // いいねの Discord 通知は、1つの投稿につきこの秒数に1回まで（連打で通知が埋まらないように）
 };
 
 // 承認待ちの一覧で目立たせる言葉（荒らし・攻撃的な表現の目安）
@@ -58,7 +60,7 @@ export default {
       if (path === '/stats' && request.method === 'GET') return stats(request, url, env, cors);
       if (path === '/likes' && request.method === 'POST') {
         if (!allowed.includes(origin)) return json({ error: 'このサイトからはいいねできません。' }, 403, cors);
-        return toggleLike(request, env, cors);
+        return toggleLike(request, env, cors, ctx);
       }
       if (path.startsWith('/admin/')) return admin(request, env, cors, path, url);
       if (path === '/') return json({ ok: true, service: 'sakura-comments' }, 200, cors);
@@ -165,7 +167,7 @@ async function stats(request, url, env, cors) {
   return json({ stats: out, liked: mine.results.map((r) => r.page) }, 200, { ...cors, 'Cache-Control': 'private, no-store' });
 }
 
-async function toggleLike(request, env, cors) {
+async function toggleLike(request, env, cors, ctx) {
   let data;
   try { data = await request.json(); } catch { return json({ error: '送信内容が読み取れませんでした。' }, 400, cors); }
   const page = String(data.page || '');
@@ -189,7 +191,33 @@ async function toggleLike(request, env, cors) {
   if (today && today.n >= LIMITS.likesPerDay) return json({ error: '今日はこれ以上いいねできません。' }, 429, cors);
 
   await env.DB.prepare('INSERT OR IGNORE INTO likes (page, ip_hash, created_at) VALUES (?, ?, ?)').bind(page, ipHash, now).run();
-  return json({ ok: true, liked: true, likes: await count() }, 200, cors);
+  const likes = await count();
+
+  const webhook = env.DISCORD_LIKES_WEBHOOK_URL || env.DISCORD_WEBHOOK_URL;
+  if (webhook && webhook !== 'off') {
+    const task = notifyLike(env.DB, webhook, { page, likes, now, origin: request.headers.get('Origin') || '' })
+      .catch((err) => console.error('discord like', err));
+    if (ctx && ctx.waitUntil) ctx.waitUntil(task); else await task;
+  }
+
+  return json({ ok: true, liked: true, likes }, 200, cors);
+}
+
+// 前回の通知から likeNotifySec 秒たっていれば通知する（その間のいいねは次の通知で「+N」としてまとめて伝わる）
+async function notifyLike(db, webhook, c) {
+  const key = 'like_notify:' + c.page;
+  const prev = await db.prepare('SELECT value FROM meta WHERE key = ?').bind(key).first();
+  const [lastAt, lastCount] = prev ? prev.value.split(':').map(Number) : [0, 0];
+  if (c.now - lastAt < LIMITS.likeNotifySec) return;
+  // 同時に来たいいねで二重に通知しないよう、記録が前回のままのときだけ書き換えられた側が通知する
+  const res = prev
+    ? await db.prepare('UPDATE meta SET value = ? WHERE key = ? AND value = ?').bind(`${c.now}:${c.likes}`, key, prev.value).run()
+    : await db.prepare('INSERT OR IGNORE INTO meta (key, value) VALUES (?, ?)').bind(key, `${c.now}:${c.likes}`).run();
+  if (!res.meta || !res.meta.changes) return;
+
+  const diff = c.likes - lastCount;
+  const head = diff > 0 && lastCount > 0 ? `♡ いいね +${diff}（合計 ${c.likes}）` : `♡ いいねが付きました（合計 ${c.likes}）`;
+  await postDiscord(webhook, `${head}\n${siteBase(c.origin)}${pagePath(c.page)}`);
 }
 
 // ---------- 管理 API ----------
@@ -302,11 +330,18 @@ async function safeEqual(a, b) {
   return diff === 0 && a.length > 0;
 }
 
+function siteBase(origin) {
+  return origin === 'https://sakuraodki.github.io' ? 'https://sakuraodki.github.io/sakura-notes' : origin;
+}
+
 async function notifyDiscord(webhook, c) {
-  const base = c.origin === 'https://sakuraodki.github.io' ? 'https://sakuraodki.github.io/sakura-notes' : c.origin;
+  const base = siteBase(c.origin);
   const head = c.status === 'pending' ? '⚠️ 要注意ワードを含むコメント（承認待ち）' : '💬 新しいコメント（公開済み）';
   const text = c.body.length > 800 ? c.body.slice(0, 800) + '…' : c.body;
-  const content = `${head}\n**${c.name}** — ${base}${pagePath(c.page)}#comments\n>>> ${text}\n\n管理ページ: ${base}/admin/`;
+  await postDiscord(webhook, `${head}\n**${c.name}** — ${base}${pagePath(c.page)}#comments\n>>> ${text}\n\n管理ページ: ${base}/admin/`);
+}
+
+async function postDiscord(webhook, content) {
   const res = await fetch(webhook, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
