@@ -19,6 +19,9 @@ export default {
     turnstileSiteKey: '0x4AAAAAAFI9l9AYoKn_F1ly',
   },
 
+  // リンクをシェアしたときに出る画像（public/ からのパス。1200×630 の PNG）
+  ogImage: '/og.png',
+
   // ホームで最初に表示する件数（残りは「もっと見る」で表示）
   pageSize: 15,
 

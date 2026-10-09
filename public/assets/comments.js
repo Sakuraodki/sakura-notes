@@ -80,7 +80,8 @@
     widget = window.turnstile.render(holder, {
       sitekey: siteKey,
       language: 'ja',
-      theme: 'light',
+      // サイトの表示（ダークモードかどうか）に合わせる
+      theme: document.documentElement.dataset.theme || 'auto',
       callback: (t) => { token = t; },
       'expired-callback': () => { token = ''; },
       'error-callback': () => { token = ''; },

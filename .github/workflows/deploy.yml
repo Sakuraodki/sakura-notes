@@ -30,6 +30,8 @@ jobs:
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}
           SITE_ORIGIN: ${{ steps.pages.outputs.origin }}
+          # 身バレにつながる言葉の一覧（Settings → Secrets and variables → Actions に登録。未登録ならチェックしない）
+          PRIVATE_WORDS: ${{ secrets.PRIVATE_WORDS }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

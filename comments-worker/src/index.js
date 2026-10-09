@@ -3,6 +3,8 @@
 // 公開 API
 //   GET  /comments?page=<記事のスラッグ / note-ひとことの名前>  承認済みコメントの一覧
 //   POST /comments                          コメントを投稿（ふつうはすぐ公開。要注意ワードを含むものだけ承認待ち）
+//   GET  /stats?pages=a,b,c                 ページごとのコメント数・いいね数と、自分がいいね済みのページ
+//   POST /likes                             いいねする／取り消す（{ page }。同じ人は1ページに1回まで）
 // 管理 API（Authorization: Bearer <ADMIN_PASSWORD>）
 //   GET  /admin/comments?status=pending|approved
 //   POST /admin/comments/<id>/approve       承認して公開
@@ -26,6 +28,8 @@ const LIMITS = {
   perDay: 10,             // 同じ人が1日に投稿できる数
   pendingMax: 300,        // 承認待ちがこれ以上たまったら受付を止める（大量投稿対策）
   loginFailMax: 10,       // 管理ページのパスワード間違いの上限（15分あたり）
+  statsPagesMax: 50,      // /stats で一度に聞けるページ数
+  likesPerDay: 200,       // 同じ人が1日にいいねできる数
 };
 
 // 承認待ちの一覧で目立たせる言葉（荒らし・攻撃的な表現の目安）
@@ -50,6 +54,11 @@ export default {
       if (path === '/comments' && request.method === 'POST') {
         if (!allowed.includes(origin)) return json({ error: 'このサイトからは投稿できません。' }, 403, cors);
         return postComment(request, env, cors, ctx);
+      }
+      if (path === '/stats' && request.method === 'GET') return stats(request, url, env, cors);
+      if (path === '/likes' && request.method === 'POST') {
+        if (!allowed.includes(origin)) return json({ error: 'このサイトからはいいねできません。' }, 403, cors);
+        return toggleLike(request, env, cors);
       }
       if (path.startsWith('/admin/')) return admin(request, env, cors, path, url);
       if (path === '/') return json({ ok: true, service: 'sakura-comments' }, 200, cors);
@@ -134,6 +143,55 @@ async function postComment(request, env, cors, ctx) {
   return json({ ok: true, status, id: res.meta && res.meta.last_row_id }, 201, cors);
 }
 
+// ---------- コメント数・いいね ----------
+
+async function stats(request, url, env, cors) {
+  const pages = [...new Set(String(url.searchParams.get('pages') || '').split(',').map((p) => p.trim()).filter(isValidPage))]
+    .slice(0, LIMITS.statsPagesMax);
+  const out = {};
+  for (const p of pages) out[p] = { comments: 0, likes: 0 };
+  if (!pages.length) return json({ stats: out, liked: [] }, 200, cors);
+
+  const marks = pages.map(() => '?').join(',');
+  const ipHash = await hashIp(env.DB, request.headers.get('CF-Connecting-IP') || '');
+  const [c, l, mine] = await env.DB.batch([
+    env.DB.prepare(`SELECT page, COUNT(*) AS n FROM comments WHERE status = 'approved' AND page IN (${marks}) GROUP BY page`).bind(...pages),
+    env.DB.prepare(`SELECT page, COUNT(*) AS n FROM likes WHERE page IN (${marks}) GROUP BY page`).bind(...pages),
+    env.DB.prepare(`SELECT page FROM likes WHERE ip_hash = ? AND page IN (${marks})`).bind(ipHash, ...pages),
+  ]);
+  for (const r of c.results) out[r.page].comments = r.n;
+  for (const r of l.results) out[r.page].likes = r.n;
+  // 「自分がいいね済みか」は人によって違うので、キャッシュさせない
+  return json({ stats: out, liked: mine.results.map((r) => r.page) }, 200, { ...cors, 'Cache-Control': 'private, no-store' });
+}
+
+async function toggleLike(request, env, cors) {
+  let data;
+  try { data = await request.json(); } catch { return json({ error: '送信内容が読み取れませんでした。' }, 400, cors); }
+  const page = String(data.page || '');
+  if (!isValidPage(page)) return json({ error: 'いいね先が不正です。' }, 400, cors);
+
+  const ipHash = await hashIp(env.DB, request.headers.get('CF-Connecting-IP') || '');
+  const now = Math.floor(Date.now() / 1000);
+  const count = async () => (await env.DB.prepare('SELECT COUNT(*) AS n FROM likes WHERE page = ?').bind(page).first()).n;
+
+  const existing = await env.DB.prepare('SELECT 1 FROM likes WHERE page = ? AND ip_hash = ?').bind(page, ipHash).first();
+  if (existing) {
+    await env.DB.prepare('DELETE FROM likes WHERE page = ? AND ip_hash = ?').bind(page, ipHash).run();
+    return json({ ok: true, liked: false, likes: await count() }, 200, cors);
+  }
+
+  // ブロック済みの人は、数えずに成功したふりをする
+  const banned = await env.DB.prepare('SELECT 1 FROM bans WHERE ip_hash = ?').bind(ipHash).first();
+  if (banned) return json({ ok: true, liked: true, likes: (await count()) + 1 }, 200, cors);
+
+  const today = await env.DB.prepare('SELECT COUNT(*) AS n FROM likes WHERE ip_hash = ? AND created_at > ?').bind(ipHash, now - 86400).first();
+  if (today && today.n >= LIMITS.likesPerDay) return json({ error: '今日はこれ以上いいねできません。' }, 429, cors);
+
+  await env.DB.prepare('INSERT OR IGNORE INTO likes (page, ip_hash, created_at) VALUES (?, ?, ?)').bind(page, ipHash, now).run();
+  return json({ ok: true, liked: true, likes: await count() }, 200, cors);
+}
+
 // ---------- 管理 API ----------
 
 async function admin(request, env, cors, path, url) {
@@ -204,6 +262,13 @@ async function ensureSchema(db) {
     db.prepare('CREATE TABLE IF NOT EXISTS bans (ip_hash TEXT PRIMARY KEY, created_at INTEGER NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS login_failures (ip_hash TEXT NOT NULL, created_at INTEGER NOT NULL)'),
     db.prepare('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)'),
+    db.prepare(`CREATE TABLE IF NOT EXISTS likes (
+      page TEXT NOT NULL,
+      ip_hash TEXT NOT NULL,
+      created_at INTEGER NOT NULL,
+      PRIMARY KEY (page, ip_hash)
+    )`),
+    db.prepare('CREATE INDEX IF NOT EXISTS idx_likes_ip ON likes (ip_hash, created_at)'),
   ]);
   schemaReady = true;
 }
