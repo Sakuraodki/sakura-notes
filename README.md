@@ -184,6 +184,8 @@ GoatCounter 側のキャッシュで、反映まで最大 4 時間ほどかか�
 2. Cloudflare の Worker（sakura-comments）の **Settings → Variables and Secrets → Add** で、環境は **Production**、Key を `DISCORD_WEBHOOK_URL`、Value にコピーした URL を入れて **Secret** にチェックして保存
 
 コメントが来るたびに、そのチャンネルに本文と記事へのリンクが届きます。
+いいねも同じチャンネルに届きます。連打で通知が埋まらないよう、1つの投稿につき **1時間に1回まで** で、その間のいいねは次の通知に「♡ いいね +3（合計 5）」のようにまとめて出ます。
+いいねだけ別のチャンネルに送りたいときは、そのチャンネルの Webhook URL をシークレット `DISCORD_LIKES_WEBHOOK_URL` に入れてください（`off` と入れると、いいねの通知だけ止まります）。
 （このページは検索エンジンに載らない設定で、ナビゲーションにも出していません）
 
 ### 仕組み
