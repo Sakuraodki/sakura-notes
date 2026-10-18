@@ -45,7 +45,8 @@ description: 大好きな3Dアニメ『ガールズバンドクライ』がゲ�
 
 ガルリフのオリジナルバンド第1弾。アソビシステムと DONUTS のオーディションで選ばれたメンバーで結成された。デビュー曲「残像の高鳴り」は作詞がモモコグミカンパニー（元 BiSH）、音楽プロデュースが松隈ケンタ。
 
-- MV：[【Official Music Video】Canna Lily「残像の高鳴り」](https://www.youtube.com/watch?v=2gKTaQUFlyY)
+![Canna Lily「残像の高鳴り」Official Music Video](https://www.youtube.com/watch?v=2gKTaQUFlyY)
+
 - 配信：[Canna Lily 公式サイト](https://cannalily-official.com/discography/zanzou)
 
 ### F-272「Diorama」
@@ -58,7 +59,8 @@ description: 大好きな3Dアニメ『ガールズバンドクライ』がゲ�
 
 特に、クズミミズクの「羽が生えた理由」は私を心の底から揺さぶる純粋で美しいロックミュージックだった。
 
-- MV：[クズミミズク「羽が生えた理由」MUSIC VIDEO](https://www.youtube.com/watch?v=kBaxWv9LzbM)
+![クズミミズク「羽が生えた理由」MUSIC VIDEO](https://www.youtube.com/watch?v=kBaxWv9LzbM)
+
 - デビューPV：[【ガルリフ】クズミミズク デビューPV](https://www.youtube.com/watch?v=ifbu6saiYxs)
 - 配信：[各配信ストア](https://kuzumimizuku.lnk.to/1stDigitalSingle)
 

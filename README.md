@@ -128,6 +128,17 @@ npm run new:post -- my-post "記事のタイトル"
 
 GitHub は 1 ファイル 100MB が上限（50MB から警告）で、サイト全体も 1GB 以内が目安です。数 MB〜十数 MB の短い動画にしてください。iPhone で撮った動画は、書き出すときに「互換性優先」（H.264）にしておくとどのブラウザでも再生できます。
 
+
+### YouTube
+
+画像と同じ書き方で YouTube の URL を書くと、記事の中に動画プレーヤーが埋め込まれます。
+
+```markdown
+![MV のタイトル](https://www.youtube.com/watch?v=動画ID)
+```
+
+`youtu.be/…` や `/shorts/…` の URL も使えます。埋め込みはプライバシー強化モード（youtube-nocookie.com）なので、再生するまで YouTube の Cookie は保存されません。
+
 ---
 
 ## 手元で確認する
