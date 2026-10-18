@@ -1,5 +1,5 @@
 // 依存ゼロの小さな Markdown 変換器。
-// 対応: 見出し / 段落 / 改行 / リスト / 引用 / コード / 区切り線 / 画像 / 動画 / YouTube / リンク / 太字 / 斜体 / インラインコード
+// 対応: 見出し / 段落 / 改行 / リスト / 引用 / コード / 区切り線 / 画像 / 動画 / YouTube / Spotify / リンク / 太字 / 斜体 / インラインコード
 
 export function escapeHtml(s) {
   return String(s)
@@ -36,6 +36,16 @@ function youtubeHtml(id, alt) {
   return `<span class="youtube-frame"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="${alt || 'YouTube 動画'}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></span>`;
 }
 
+// 同じく Spotify の URL（曲・アルバム・アーティスト・プレイリスト）はプレーヤーとして埋め込む
+function spotifyEmbed(src) {
+  const m = src.trim().match(/^https:\/\/open\.spotify\.com\/(?:intl-[\w-]+\/)?(track|album|artist|playlist)\/([A-Za-z0-9]{22})(?:[?#].*)?$/);
+  return m ? { type: m[1], id: m[2] } : null;
+}
+function spotifyHtml({ type, id }, alt) {
+  const cls = type === 'track' ? 'spotify-frame is-track' : 'spotify-frame';
+  return `<span class="${cls}"><iframe src="https://open.spotify.com/embed/${type}/${id}" title="${alt || 'Spotify'}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe></span>`;
+}
+
 // resolve: 画像やリンクの相対パス（/ で始まるもの）にベースパスを付けるための関数
 export function inline(text, resolve = (u) => u) {
   const codes = [];
@@ -48,6 +58,8 @@ export function inline(text, resolve = (u) => u) {
     const url = escapeHtml(resolve(safeUrl(unescape(src))));
     const yt = youtubeId(unescape(src));
     if (yt) return youtubeHtml(yt, alt);
+    const sp = spotifyEmbed(unescape(src));
+    if (sp) return spotifyHtml(sp, alt);
     if (isVideo(src)) return videoHtml(url, alt);
     return `<img src="${url}" alt="${alt}" loading="lazy"${title ? ` title="${title}"` : ''}>`;
   });
@@ -138,7 +150,7 @@ export function markdown(src, resolve) {
     const img = line.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (img) {
       const src0 = img[2].trim().split(/\s+/)[0];
-      const cls = youtubeId(src0) ? ' class="youtube"' : isVideo(src0) ? ' class="video"' : '';
+      const cls = youtubeId(src0) ? ' class="youtube"' : spotifyEmbed(src0) ? ' class="spotify"' : isVideo(src0) ? ' class="video"' : '';
       out.push(`<figure${cls}>${inline(line.trim(), resolve)}${img[1] ? `<figcaption>${escapeHtml(img[1])}</figcaption>` : ''}</figure>`);
       i++;
       continue;

@@ -66,7 +66,10 @@ TVアニメの Blu-ray / DVD Vol.7 豪華限定版の特典として世に出た
 
 ![トゲナシトゲアリ「最期の禱り」試聴動画](https://www.youtube.com/watch?v=z3y2JQZA2OE)
 
-好きな曲は多すぎる。（曲はあとで追加）
+
+好きな曲は多すぎる。ここに挙げた4曲以外も、Spotify でまとめて聴いてほしい。
+
+![トゲナシトゲアリ（Spotify）](https://open.spotify.com/artist/7JAG8hDvCiDFBJkTdOCJ6F)
 
 ## ゲーム『First Riff』について
 

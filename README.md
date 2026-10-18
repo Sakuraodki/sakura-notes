@@ -137,7 +137,9 @@ GitHub は 1 ファイル 100MB が上限（50MB から警告）で、サイト�
 ![MV のタイトル](https://www.youtube.com/watch?v=動画ID)
 ```
 
-`youtu.be/…` や `/shorts/…` の URL も使えます。埋め込みはプライバシー強化モード（youtube-nocookie.com）なので、再生するまで YouTube の Cookie は保存されません。
+`youtu.be/…` や `/shorts/…` の URL も使えます。
+
+Spotify の曲・アルバム・アーティスト・プレイリストの URL（`https://open.spotify.com/…`）も同じ書き方でプレーヤーになります。アーティストの URL なら人気曲がまとめて表示されます。埋め込みはプライバシー強化モード（youtube-nocookie.com）なので、再生するまで YouTube の Cookie は保存されません。
 
 ---
 
