@@ -108,6 +108,8 @@ TVアニメの Blu-ray / DVD Vol.7 豪華限定版の特典として世に出た
 
 第2弾。アイドル養成スクールの「最底辺クラス」の少女たちが、上のクラスから降格してきた一人をきっかけに音を鳴らし始める、という設定のバンド。プロデュースは B ZONE。メンバーは加藤 嗄生（Vo.）、黒宮 八月（Gt.）、宇田川 琴（Gt.）、浅井 萌々乃（Ba.）、中村 有（Dr.）。デビュー曲は「Diorama」。7月の 1st ワンマンライブ（代官山UNIT）はチケットが完売し、2027年1月29日には CLUB CITTA' KAWASAKI で 2nd ワンマンライブが予定されている（[電撃オンラインのレポート](https://dengekionline.com/article/202607/82257)）。
 
+Canna Lily やクズミミズクとはまた違う、F-272 らしい音になっている。
+
 ![F-272「Diorama」Official Music Video](https://www.youtube.com/watch?v=3cbYPipPqb4)
 
 ### クズミミズク「羽が生えた理由」
