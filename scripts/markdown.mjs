@@ -1,5 +1,5 @@
 // 依存ゼロの小さな Markdown 変換器。
-// 対応: 見出し / 段落 / 改行 / リスト / 引用 / コード / 区切り線 / 画像 / 動画 / リンク / 太字 / 斜体 / インラインコード
+// 対応: 見出し / 段落 / 改行 / リスト / 引用 / コード / 区切り線 / 画像 / 動画 / YouTube / Spotify / リンク / 太字 / 斜体 / インラインコード
 
 export function escapeHtml(s) {
   return String(s)
@@ -27,6 +27,25 @@ function videoHtml(url, alt) {
     `<button type="button" class="video-sound" data-video-sound aria-label="音声をオンにする" aria-pressed="false">${SOUND_ICON}</button></span>`;
 }
 
+// 画像と同じ書き方で YouTube の URL を書くと、動画プレーヤーとして埋め込む（youtube-nocookie を使う）
+function youtubeId(src) {
+  const m = src.trim().match(/^https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/)|youtu\.be\/)([\w-]{11})(?:[?&#].*)?$/i);
+  return m ? m[1] : null;
+}
+function youtubeHtml(id, alt) {
+  return `<span class="youtube-frame"><iframe src="https://www.youtube-nocookie.com/embed/${id}" title="${alt || 'YouTube 動画'}" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe></span>`;
+}
+
+// 同じく Spotify の URL（曲・アルバム・アーティスト・プレイリスト）はプレーヤーとして埋め込む
+function spotifyEmbed(src) {
+  const m = src.trim().match(/^https:\/\/open\.spotify\.com\/(?:intl-[\w-]+\/)?(track|album|artist|playlist)\/([A-Za-z0-9]{22})(?:[?#].*)?$/);
+  return m ? { type: m[1], id: m[2] } : null;
+}
+function spotifyHtml({ type, id }, alt) {
+  const cls = type === 'track' ? 'spotify-frame is-track' : 'spotify-frame';
+  return `<span class="${cls}"><iframe src="https://open.spotify.com/embed/${type}/${id}" title="${alt || 'Spotify'}" loading="lazy" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"></iframe></span>`;
+}
+
 // resolve: 画像やリンクの相対パス（/ で始まるもの）にベースパスを付けるための関数
 export function inline(text, resolve = (u) => u) {
   const codes = [];
@@ -37,6 +56,10 @@ export function inline(text, resolve = (u) => u) {
   s = escapeHtml(s);
   s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)(?:\s+&quot;([^&]*)&quot;)?\)/g, (_, alt, src, title) => {
     const url = escapeHtml(resolve(safeUrl(unescape(src))));
+    const yt = youtubeId(unescape(src));
+    if (yt) return youtubeHtml(yt, alt);
+    const sp = spotifyEmbed(unescape(src));
+    if (sp) return spotifyHtml(sp, alt);
     if (isVideo(src)) return videoHtml(url, alt);
     return `<img src="${url}" alt="${alt}" loading="lazy"${title ? ` title="${title}"` : ''}>`;
   });
@@ -126,7 +149,8 @@ export function markdown(src, resolve) {
     // 画像だけの行は figure に
     const img = line.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
     if (img) {
-      const cls = isVideo(img[2].trim().split(/\s+/)[0]) ? ' class="video"' : '';
+      const src0 = img[2].trim().split(/\s+/)[0];
+      const cls = youtubeId(src0) ? ' class="youtube"' : spotifyEmbed(src0) ? ' class="spotify"' : isVideo(src0) ? ' class="video"' : '';
       out.push(`<figure${cls}>${inline(line.trim(), resolve)}${img[1] ? `<figcaption>${escapeHtml(img[1])}</figcaption>` : ''}</figure>`);
       i++;
       continue;
